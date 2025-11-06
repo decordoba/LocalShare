@@ -45,6 +45,10 @@
       color: #adb5bd;
       font-size: 0.9em;
     }
+    .delete-btn {
+      color: #dc3546a5;
+      border-color: #dc3546a5;
+    }
   </style>
 </head>
 <body class="bg-light">
@@ -297,6 +301,31 @@
 
       xhr.send(formData);
     }
+
+    // Delete function
+    document.addEventListener('click', async e => {
+      if (e.target.classList.contains('delete-btn')) {
+        const path = e.target.getAttribute('data-path');
+        if (!confirm(`Are you sure you want to delete "${path}"?`)) return;
+
+        try {
+          const resp = await fetch(`/delete/${encodeURIComponent(path)}`, {
+            method: 'DELETE'
+          });
+          if (resp.ok) {
+            e.target.disabled = true;
+            e.target.textContent = '🗑️ Deleted';
+            e.target.classList.add('btn-secondary');
+            setTimeout(() => window.location.reload(), 1000);
+          } else {
+            const err = await resp.text();
+            alert(`Failed to delete: ${err}`);
+          }
+        } catch (err) {
+          alert(`Error: ${err}`);
+        }
+      }
+    });
   </script>
 </body>
 </html>

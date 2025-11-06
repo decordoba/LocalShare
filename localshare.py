@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 app = FastAPI()
 UPLOAD_DIR = "uploads"  # default, overridden by typer later
 NOTES_FILE = "notes.txt"  # default, overridden by typer later
+DELETE_ENABLED = False  # default, overridden by typer later
 
 
 def get_local_ip():
@@ -90,12 +91,22 @@ async def index(sort: str = "newest", mode: str = "top"):
         size_str = human_readable_size(size)
         icon = "📁" if kind == "folder" else "📄" if kind == "file" else "📂📄"
         href = f"/download_folder/{name}" if kind == "folder" else f"/files/{name}"
-        links += (
-            f'<a href="{href}" class="list-group-item list-group-item-action">'
-            f'{icon} {name} <span class="file-size">({size_str})</span>'
-            f"</a>"
-        )
-
+        if not DELETE_ENABLED:
+            links += (
+                f'<a href="{href}" class="list-group-item list-group-item-action">'
+                f'{icon} {name} <span class="file-size">({size_str})</span>'
+                f"</a>"
+            )
+        else:
+            links += (
+                f'<div class="list-group-item list-group-item-action d-flex '
+                f'justify-content-between align-items-center">'
+                f'<a href="{href}" class="text-body text-decoration-none">'
+                f'{icon} {name} <span class="file-size">({size_str})</span></a>'
+                f'<button class="btn btn-outline-danger btn-sm delete-btn" '
+                f'data-path="{name}">🗑️ Delete</button>'
+                f"</div>"
+            )
     # load html template file, and inject dynamic variables
     with open("index.html", "r", encoding="utf-8") as f:
         html = f.read()
@@ -132,6 +143,35 @@ async def upload(files: list[UploadFile] = File(...)):
         path = os.path.join(save_dir, os.path.basename(file.filename))
         with open(path, "wb") as f:
             f.write(await file.read())
+    return HTMLResponse("OK")
+
+
+@app.delete("/delete/{path:path}")
+async def delete_item(path: str):
+    """Delete a file or folder from the uploads directory."""
+    if not DELETE_ENABLED:
+        return HTMLResponse("Deletion not enabled", status_code=403)
+
+    full_path = os.path.join(UPLOAD_DIR, path)
+    abs_path = os.path.abspath(full_path)
+    base_path = os.path.abspath(UPLOAD_DIR)
+
+    if not abs_path.startswith(base_path + os.sep) or abs_path == base_path:
+        return HTMLResponse("Access denied", status_code=403)
+
+    if not os.path.exists(full_path):
+        return HTMLResponse("Item not found", status_code=404)
+
+    try:
+        if os.path.isfile(full_path):
+            os.remove(full_path)
+        elif os.path.isdir(full_path):
+            shutil.rmtree(full_path)
+        else:
+            return HTMLResponse("Unsupported file type", status_code=400)
+    except Exception:
+        return HTMLResponse("Failed to delete", status_code=500)
+
     return HTMLResponse("OK")
 
 
@@ -187,11 +227,15 @@ cli = typer.Typer(help="Local file server with upload/download UI.")
 def serve(
     folder: str = typer.Argument(UPLOAD_DIR, help="Folder to serve files from"),
     notes: str = typer.Option(NOTES_FILE, "--notes", help="Shared notes file name"),
+    delete_enabled: bool = typer.Option(
+        DELETE_ENABLED, "--enable-delete", help="Enable file/folder deletion"
+    ),
 ):
     """Run the FastAPI file server serving the given folder."""
-    global UPLOAD_DIR, NOTES_FILE
+    global UPLOAD_DIR, NOTES_FILE, DELETE_ENABLED
     UPLOAD_DIR = os.path.abspath(folder)
     NOTES_FILE = notes
+    DELETE_ENABLED = delete_enabled
 
     # create upload dir if not existent
     os.makedirs(UPLOAD_DIR, exist_ok=True)

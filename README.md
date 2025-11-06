@@ -25,9 +25,14 @@ Specify the name of the shared text file (default is `notes.txt`):
 uv run localshare.py --notes mynotes.txt
 ```
 
+Allow deletion of files and folders via the web interface (disabled by default):
+```bash
+uv run localshare.py --enable-delete
+```
+
 Alternatively, use `uvicorn` directly to serve the app:
 ```bash
-uv run uvicorn serve:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn localshare:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## Features

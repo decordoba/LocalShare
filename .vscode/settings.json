@@ -17,8 +17,8 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-      "source.fixAll": true,
-      "source.organizeImports": true
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
     },
     "editor.insertSpaces": true,
     "editor.tabSize": 4,
@@ -50,6 +50,15 @@
     "--disallow-untyped-defs",
     "--strict"
   ],
+
+  // Ignore workspace folders for indexing
+  "python.analysis.exclude": [".venv"],
+  "files.exclude": {
+    "**/.venv": true
+  },
+  "search.exclude": {
+    "**/.venv": true
+  },
 
   // Misc
   // "python.analysis.typeCheckingMode": "strict",  // show type issues
