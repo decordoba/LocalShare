@@ -172,6 +172,14 @@ async def favicon():
     return FileResponse("favicon.ico")
 
 
+@app.get("/bootstrap.min.css")
+async def boostrap_min_css():
+    """Return bootstrap css."""
+    with open("bootstrap.min.css", "r", encoding="utf-8") as f:
+        content = f.read()
+    return HTMLResponse(content, media_type="text/css")
+
+
 cli = typer.Typer(help="Local file server with upload/download UI.")
 
 
