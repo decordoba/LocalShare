@@ -4,7 +4,7 @@ A browser-based local network server to upload/download files, full folders, and
 Local Share lets you share any folder on your local network so other devices can easily upload and download files — including full folders — directly from their browsers.
 It also includes a simple shared notepad for quickly exchanging notes, links, and text between users.
 
-<img src="screenshot1.png" alt="screenshot" width="800"/>
+![screenshot](screenshot1.png)
 
 ---
 
@@ -29,8 +29,6 @@ Alternatively, use `uvicorn` directly to serve the app:
 ```bash
 uv run uvicorn serve:app --host 0.0.0.0 --port 8000 --reload
 ```
-
----
 
 ## Features
 
