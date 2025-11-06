@@ -1,0 +1,58 @@
+{
+  // Python interpreter
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python",  // windows
+  // "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",  // linux/macOS
+
+  // Linting
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.linting.mypyEnabled": true,
+  "python.linting.pylintEnabled": false,
+
+  // Disable other formatters
+  "python.formatting.provider": "none",
+
+  // Ruff Formatter
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true,
+      "source.organizeImports": true
+    },
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "files.insertFinalNewline": true,
+    "editor.rulers": [100]
+  },
+
+  // Ruff Arguments
+  "ruff.lineLength": 100,
+  "ruff.lint.select": [
+    // "C",  // Complexity & code style checks (e.g., cyclomatic complexity)
+    "E",  // pycodestyle errors (PEP 8 error-level style violations)
+    "F",  // Pyflakes errors (undefined names, unused variables, etc.)
+    "W",  // pycodestyle warnings (minor PEP 8 issues)
+    "I"   // Import sorting (like isort)
+  ],
+  "ruff.lint.ignore": [],
+  "ruff.configuration": {
+    "lint": {
+      "fixable": ["ALL"],
+      "unfixable": ["F401"]
+    }
+  },
+
+  // Mypy type checking
+  "mypy.enabled": true,
+  "mypy.args": [
+    "--ignore-missing-imports",
+    "--disallow-untyped-defs",
+    "--strict"
+  ],
+
+  // Misc
+  // "python.analysis.typeCheckingMode": "strict",  // show type issues
+  "files.trimTrailingWhitespace": true,
+  "editor.detectIndentation": true
+}

@@ -1,0 +1,12 @@
+[project]
+name = "localshare"
+version = "0.1.0"
+description = "A browser-based local network server to upload/download files, full folders, and share notes"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.119.0",
+    "python-multipart>=0.0.20",
+    "typer>=0.19.2",
+    "uvicorn>=0.37.0",
+]

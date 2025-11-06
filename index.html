@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>📁 Local File Server</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 40px auto;
+      max-width: 700px;
+    }
+    #drop-zone {
+      border: 2px dashed #007bff;
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      color: #666;
+      background: #f8f9fa;
+      cursor: pointer;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    #drop-zone.dragover {
+      background: #e9f5ff;
+      border-color: #0d6efd;
+      color: #0d6efd;
+    }
+    .file-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .progress {
+      background-color: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      transition: width 0.2s ease-in-out;
+    }
+    .fade-out {
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    .file-size {
+      color: #adb5bd;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <!-- title -->
+    <h2 class="mb-4 text-center">📁 Local File Server</h2>
+
+    <!-- load files & folders area -->
+    <div id="drop-zone" class="mb-3">
+      <strong>Drag & drop files or folders here</strong><br>
+      <div class="mt-2">
+        <button id="select-files" class="btn btn-outline-primary btn-sm me-2" type="button">Select Files</button>
+        <button id="select-folder" class="btn btn-outline-secondary btn-sm" type="button">Select Folder</button>
+      </div>
+    </div>
+
+    <!-- hidden inputs, for drag and drop -->
+    <input id="file-input-files" type="file" multiple hidden>
+    <input id="file-input-folder" type="file" multiple webkitdirectory hidden>
+
+    <!-- progress bar -->
+    <div id="progress-container" class="progress" style="height: 20px; display:none;">
+      <div id="progress-bar"
+        class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+        role="progressbar"
+        style="width: 0%">
+        0%
+      </div>
+    </div>
+
+    <!-- status message -->
+    <div id="upload-status" class="mt-3"></div>
+
+    <hr>
+
+    <!-- notes area -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          📝 Shared Text File:
+          <span class="text-muted ms-1">{{ NOTES_FILE_PLACEHOLDER }}</span>
+        </div>
+        <div>
+          <button id="refresh-notes" class="btn btn-outline-secondary btn-sm">↻ Refresh</button>
+          <button id="save-notes" class="btn btn-outline-primary btn-sm">💾 Save</button>
+        </div>
+      </div>
+      <div class="card-body p-2">
+        <textarea id="notes-content" class="form-control" rows="3"
+                  placeholder="Type shared notes here..."></textarea>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- download files area -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <label class="me-2 fw-semibold">Sort:</label>
+        <select id="sort-mode" class="form-select form-select-sm d-inline-block" style="width:auto;">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="az">A-Z</option>
+          <option value="za">Z-A</option>
+          <option value="size_asc">Smallest first</option>
+          <option value="size_desc">Largest first</option>
+        </select>
+      </div>
+      <div>
+        <input type="checkbox" id="mode-toggle" class="form-check-input me-1">
+        <label for="mode-toggle" class="form-check-label">Flat view (all files)</label>
+      </div>
+    </div>
+    <div class="list-group file-list">
+      {{ LINKS_PLACEHOLDER }}
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const selectFilesBtn = document.getElementById('select-files');
+    const selectFolderBtn = document.getElementById('select-folder');
+    const fileInputFiles = document.getElementById('file-input-files');
+    const fileInputFolder = document.getElementById('file-input-folder');
+    const progressBar = document.getElementById('progress-bar');
+    const progressContainer = document.getElementById('progress-container');
+    const statusDiv = document.getElementById('upload-status');
+    const notesArea = document.getElementById('notes-content');
+    const saveBtn = document.getElementById('save-notes');
+    const refreshBtn = document.getElementById('refresh-notes');
+
+    // Notes functions
+    async function loadNotes() {
+      const resp = await fetch('/shared_text');
+      notesArea.value = await resp.text();
+    }
+    async function saveNotes() {
+      const formData = new FormData();
+      formData.append('content', notesArea.value);
+      const resp = await fetch('/shared_text', { method: 'POST', body: formData });
+      if (resp.ok) {
+        saveBtn.innerText = '✅ Saved!';
+        setTimeout(() => (saveBtn.innerText = '💾 Save'), 1500);
+      }
+    }
+
+    // Notes buttons
+    saveBtn.addEventListener('click', saveNotes);
+    refreshBtn.addEventListener('click', loadNotes);
+
+    // Load notes on startup
+    loadNotes();
+
+    // Buttons trigger their inputs
+    selectFilesBtn.addEventListener('click', () => fileInputFiles.click());
+    selectFolderBtn.addEventListener('click', () => fileInputFolder.click());
+
+    // Mode toggle
+    const currentMode = "{{ MODE_SELECTED_PLACEHOLDER }}";
+    const modeToggle = document.getElementById('mode-toggle');
+    modeToggle.checked = currentMode === 'flat';
+    modeToggle.addEventListener('change', () => {
+      const newMode = modeToggle.checked ? 'flat' : 'top';
+      window.location.href = `/?sort=${sortSelect.value}&mode=${newMode}`;
+    });
+
+    // Sorting
+    const currentSort = "{{ SORT_SELECTED_PLACEHOLDER }}";
+    const sortSelect = document.getElementById('sort-mode');
+    sortSelect.value = currentSort;
+    sortSelect.addEventListener('change', () => {
+      window.location.href = `/?sort=${sortSelect.value}&mode=${currentMode}`;
+    });
+    if (sortSelect) {
+      for (const option of sortSelect.options) {
+        if (option.value === currentSort) option.selected = true;
+      }
+    }
+    sortSelect.addEventListener('change', e => {
+      window.location.href = '/?sort=' + e.target.value;
+    });
+
+    // Manual file selections
+    fileInputFiles.addEventListener('change', () => {
+      const files = Array.from(fileInputFiles.files);
+      if (files.length > 0) uploadFiles(files);
+    });
+    fileInputFolder.addEventListener('change', () => {
+      const files = Array.from(fileInputFolder.files);
+      if (files.length > 0) uploadFiles(files);
+    });
+
+    // Drag & drop
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', async e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      const items = e.dataTransfer.items;
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+        if (entry) await traverseFileTree(entry, "", files);
+      }
+      if (files.length > 0) uploadFiles(files);
+    });
+
+    // Folder traversal
+    async function traverseFileTree(item, path, files) {
+    return new Promise(resolve => {
+      if (item.isFile) {
+        item.file(file => {
+          file.fullPath = path + file.name;
+          files.push(file);
+          resolve();
+        });
+      } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      dirReader.readEntries(async entries => {
+        for (const entry of entries)
+          await traverseFileTree(entry, path + item.name + "/", files);
+        resolve();
+      });
+      }
+    });
+    }
+
+    // Upload function
+    function uploadFiles(files) {
+      const formData = new FormData();
+      for (const file of files)
+        formData.append('files', file, file.fullPath || file.name);
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      statusDiv.innerHTML = '';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload', true);
+
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = percent + '%';
+          progressBar.textContent = percent + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          progressBar.style.width = '100%';
+          statusDiv.innerHTML = '<div class="alert alert-success">✅ Upload complete!</div>';
+          setTimeout(() => {
+            const alert = statusDiv.querySelector('.alert');
+            if (alert) alert.classList.add('fade-out');
+            setTimeout(() => window.location.reload(), 1000);
+          }, 1500);
+        } else {
+          statusDiv.innerHTML = '<div class="alert alert-danger">❌ Upload failed.</div>';
+          setTimeout(() => {
+            const alert = statusDiv.querySelector('.alert');
+            if (alert) alert.classList.add('fade-out');
+            setTimeout(() => window.location.reload(), 1000);
+          }, 1500);
+        }
+      };
+      xhr.onerror = () => {
+        statusDiv.innerHTML = '<div class="alert alert-danger">⚠️ Network error.</div>';
+        setTimeout(() => {
+          const alert = statusDiv.querySelector('.alert');
+          if (alert) alert.classList.add('fade-out');
+          setTimeout(() => window.location.reload(), 1000);
+        }, 1500);
+      };
+
+      if (fileInputFolder.files.length > 0) {
+        const rootFolder = fileInputFolder.files[0].webkitRelativePath.split('/')[0];
+        for (const file of fileInputFolder.files) {
+          const relPath = file.webkitRelativePath;
+          formData.append('files', file, relPath || file.name);
+        }
+      } else {
+        for (const file of files) {
+          formData.append('files', file, file.fullPath || file.name);
+        }
+      }
+
+      xhr.send(formData);
+    }
+  </script>
+</body>
+</html>
