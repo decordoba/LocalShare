@@ -271,15 +271,15 @@ cli = typer.Typer(help="Local file server with upload/download UI.")
 @cli.command()
 def serve(
     folder: str = typer.Argument(UPLOAD_DIR, help="Folder to serve files from"),
-    notes: str = typer.Option(NOTES_FILE, "--notes", help="Shared notes file name"),
+    notes: str = typer.Option(NOTES_FILE, "--notes", "-n", help="Shared notes file name"),
     delete_enabled: bool = typer.Option(
-        DELETE_ENABLED, "--enable-delete", help="Enable file/folder deletion"
+        DELETE_ENABLED, "--enable-delete", "-d", help="Enable file/folder deletion"
     ),
     unsafe_delete: bool = typer.Option(
-        UNSAFE_DELETE, "--unsafe-delete", help="Disable delete confirmation dialog"
+        UNSAFE_DELETE, "--unsafe-delete", "-u", help="Disable delete confirmation dialog"
     ),
     prevent_overwrite: bool = typer.Option(
-        PREVENT_OVERWRITE, "--prevent-overwrite", help="Prevent overwriting existing files"
+        PREVENT_OVERWRITE, "--prevent-overwrite", "-o", help="Prevent overwriting existing files"
     ),
 ):
     """Run the FastAPI file server serving the given folder."""
