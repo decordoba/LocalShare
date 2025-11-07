@@ -14,6 +14,7 @@ app = FastAPI()
 UPLOAD_DIR = "uploads"  # default, overridden by typer later
 NOTES_FILE = "notes.txt"  # default, overridden by typer later
 DELETE_ENABLED = False  # default, overridden by typer later
+UNSAFE_DELETE = False  # default, overridden by typer later
 
 
 def get_local_ip():
@@ -124,6 +125,13 @@ async def index(sort: str = "newest", mode: str = "top"):
                 f'data-path="{safe_name}">🗑️ Delete</button>'
                 f"</div>"
             )
+
+    delete_confirmation = (
+        'if (!confirm(`Are you sure you want to delete "${path}"?`)) return;'
+        if not UNSAFE_DELETE
+        else ""
+    )
+
     # load html template file, and inject dynamic variables
     with open("index.html", "r", encoding="utf-8") as f:
         html = f.read()
@@ -132,6 +140,7 @@ async def index(sort: str = "newest", mode: str = "top"):
     html = html.replace("{{ NOTES_FILE_PLACEHOLDER }}", NOTES_FILE)
     html = html.replace("{{ SORT_SELECTED_PLACEHOLDER }}", sort)
     html = html.replace("{{ MODE_SELECTED_PLACEHOLDER }}", mode)
+    html = html.replace("{{ DELETE_CONFIRMATION_PLACEHOLDER }}", delete_confirmation)
 
     return HTMLResponse(content=html)
 
@@ -254,12 +263,16 @@ def serve(
     delete_enabled: bool = typer.Option(
         DELETE_ENABLED, "--enable-delete", help="Enable file/folder deletion"
     ),
+    unsafe_delete: bool = typer.Option(
+        UNSAFE_DELETE, "--unsafe-delete", help="Disable delete confirmation dialog"
+    ),
 ):
     """Run the FastAPI file server serving the given folder."""
-    global UPLOAD_DIR, NOTES_FILE, DELETE_ENABLED
+    global UPLOAD_DIR, NOTES_FILE, DELETE_ENABLED, UNSAFE_DELETE
     UPLOAD_DIR = os.path.abspath(folder)
     NOTES_FILE = notes
     DELETE_ENABLED = delete_enabled
+    UNSAFE_DELETE = unsafe_delete
 
     # create upload dir if not existent
     os.makedirs(UPLOAD_DIR, exist_ok=True)

@@ -30,6 +30,11 @@ Allow deletion of files and folders via the web interface (disabled by default):
 uv run localshare.py --enable-delete
 ```
 
+Disable the delete confirmation dialog (use with caution, delete files/folders with one click):
+```bash
+uv run localshare.py --enable-delete --unsafe-delete
+```
+
 Alternatively, use `uvicorn` directly to serve the app:
 ```bash
 uv run uvicorn localshare:app --host 0.0.0.0 --port 8000 --reload

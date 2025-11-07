@@ -306,7 +306,7 @@
     document.addEventListener('click', async e => {
       if (e.target.classList.contains('delete-btn')) {
         const path = e.target.getAttribute('data-path');
-        if (!confirm(`Are you sure you want to delete "${path}"?`)) return;
+        {{ DELETE_CONFIRMATION_PLACEHOLDER }}
 
         try {
           const resp = await fetch(`/delete/${encodeURIComponent(path)}`, {
