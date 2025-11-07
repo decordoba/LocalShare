@@ -22,7 +22,8 @@ uv run localshare.py /path/to/folder
 
 Specify the name of the shared text file (default is `notes.txt`):
 ```bash
-uv run localshare.py --notes mynotes.txt
+uv run localshare.py --notes mynotes.txt  # save notes in the shared folder
+uv run localshare.py --notes ../notes.txt  # save notes outside the shared folder
 ```
 
 Allow deletion of files and folders via the web interface (disabled by default):
@@ -30,9 +31,14 @@ Allow deletion of files and folders via the web interface (disabled by default):
 uv run localshare.py --enable-delete
 ```
 
-Disable the delete confirmation dialog (use with caution, delete files/folders with one click):
+Disable the delete confirmation dialog (use with caution, deletes files/folders with one click):
 ```bash
 uv run localshare.py --enable-delete --unsafe-delete
+```
+
+Prevent overwriting existing files/folders on upload:
+```bash
+uv run localshare.py --prevent-overwrite
 ```
 
 Alternatively, use `uvicorn` directly to serve the app:
@@ -46,7 +52,11 @@ uv run uvicorn localshare:app --host 0.0.0.0 --port 8000 --reload
   - Drag-and-drop support for files and folders
   - Upload entire folders at once
   - Download folders as ZIP files
+- Choose if you want to enable file and folder deletion from the user interface
+- Choose if files and folders can be overwritten on upload
 - Shared text file (notepad) for notes, links, and messages
+  - By default, uses `notes.txt` file in the shared folder
+  - Can be set to any file path, including outside the shared folder
 - No authentication — accessible to anyone on the same network
 - Optional “flat view” to display all files in subfolders
 - Simple, responsive web interface built with **FastAPI** and **Bootstrap**

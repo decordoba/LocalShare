@@ -15,6 +15,7 @@ UPLOAD_DIR = "uploads"  # default, overridden by typer later
 NOTES_FILE = "notes.txt"  # default, overridden by typer later
 DELETE_ENABLED = False  # default, overridden by typer later
 UNSAFE_DELETE = False  # default, overridden by typer later
+PREVENT_OVERWRITE = False  # prevent overwriting existing files
 
 
 def get_local_ip():
@@ -148,6 +149,17 @@ async def index(sort: str = "newest", mode: str = "top"):
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(files: list[UploadFile] = File(...)):
     """Handle file and folder uploads, save to UPLOAD_DIR."""
+    if PREVENT_OVERWRITE:
+        for file in files:
+            if not file.filename:
+                continue
+            subdir = os.path.dirname(file.filename)
+            save_dir = os.path.join(UPLOAD_DIR, subdir)
+            path = os.path.join(save_dir, os.path.basename(file.filename))
+            if os.path.exists(path):
+                return HTMLResponse(
+                    f"Files cannot be overwritten: {file.filename}", status_code=400
+                )
     for file in files:
         if not file.filename:
             continue
@@ -266,13 +278,17 @@ def serve(
     unsafe_delete: bool = typer.Option(
         UNSAFE_DELETE, "--unsafe-delete", help="Disable delete confirmation dialog"
     ),
+    prevent_overwrite: bool = typer.Option(
+        PREVENT_OVERWRITE, "--prevent-overwrite", help="Prevent overwriting existing files"
+    ),
 ):
     """Run the FastAPI file server serving the given folder."""
-    global UPLOAD_DIR, NOTES_FILE, DELETE_ENABLED, UNSAFE_DELETE
+    global UPLOAD_DIR, NOTES_FILE, DELETE_ENABLED, UNSAFE_DELETE, PREVENT_OVERWRITE
     UPLOAD_DIR = os.path.abspath(folder)
     NOTES_FILE = notes
     DELETE_ENABLED = delete_enabled
     UNSAFE_DELETE = unsafe_delete
+    PREVENT_OVERWRITE = prevent_overwrite
 
     # create upload dir if not existent
     os.makedirs(UPLOAD_DIR, exist_ok=True)
