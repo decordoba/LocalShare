@@ -2,11 +2,13 @@ import os
 import shutil
 import socket
 import tempfile
+import urllib.parse
+from html import escape as html_escape
 
 import typer
 import uvicorn
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
 app = FastAPI()
 UPLOAD_DIR = "uploads"  # default, overridden by typer later
@@ -31,6 +33,19 @@ def human_readable_size(num_bytes: float) -> str:
             return f"{num_bytes:.1f} {unit}"
         num_bytes /= 1024
     return f"{num_bytes:.1f} PB"
+
+
+def validate_path(path: str) -> bool:
+    """Check if the given path is safe (no directory traversal, no symlink)."""
+    base_path = os.path.abspath(UPLOAD_DIR)
+    target = os.path.abspath(os.path.join(UPLOAD_DIR, path))
+    if not target.startswith(base_path + os.sep):
+        return False
+    if target == base_path:
+        return False
+    if os.path.islink(target):
+        return False
+    return True
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -90,11 +105,13 @@ async def index(sort: str = "newest", mode: str = "top"):
     for name, kind, _, size in items:
         size_str = human_readable_size(size)
         icon = "📁" if kind == "folder" else "📄" if kind == "file" else "📂📄"
-        href = f"/download_folder/{name}" if kind == "folder" else f"/files/{name}"
+        safe_name = html_escape(name)
+        encoded_name = urllib.parse.quote(name, safe="/")
+        href = f"/download_folder/{encoded_name}" if kind == "folder" else f"/files/{encoded_name}"
         if not DELETE_ENABLED:
             links += (
                 f'<a href="{href}" class="list-group-item list-group-item-action">'
-                f'{icon} {name} <span class="file-size">({size_str})</span>'
+                f'{icon} {safe_name} <span class="file-size">({size_str})</span>'
                 f"</a>"
             )
         else:
@@ -102,9 +119,9 @@ async def index(sort: str = "newest", mode: str = "top"):
                 f'<div class="list-group-item list-group-item-action d-flex '
                 f'justify-content-between align-items-center">'
                 f'<a href="{href}" class="text-body text-decoration-none">'
-                f'{icon} {name} <span class="file-size">({size_str})</span></a>'
+                f'{icon} {safe_name} <span class="file-size">({size_str})</span></a>'
                 f'<button class="btn btn-outline-danger btn-sm delete-btn" '
-                f'data-path="{name}">🗑️ Delete</button>'
+                f'data-path="{safe_name}">🗑️ Delete</button>'
                 f"</div>"
             )
     # load html template file, and inject dynamic variables
@@ -117,18 +134,6 @@ async def index(sort: str = "newest", mode: str = "top"):
     html = html.replace("{{ MODE_SELECTED_PLACEHOLDER }}", mode)
 
     return HTMLResponse(content=html)
-
-
-@app.get("/download_folder/{folder_name}")
-async def download_folder(folder_name: str):
-    """Zip a folder in UPLOAD_DIR and return it."""
-    folder_path = os.path.join(UPLOAD_DIR, folder_name)
-    if not os.path.isdir(folder_path):
-        return HTMLResponse("<h3>Folder not found</h3>", status_code=404)
-
-    tmp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-    shutil.make_archive(tmp_zip.name[:-4], "zip", folder_path)
-    return FileResponse(tmp_zip.name, filename=f"{folder_name}.zip")
 
 
 @app.post("/upload", response_class=HTMLResponse)
@@ -146,18 +151,16 @@ async def upload(files: list[UploadFile] = File(...)):
     return HTMLResponse("OK")
 
 
-@app.delete("/delete/{path:path}")
+@app.delete("/delete/{path:path}", response_class=HTMLResponse)
 async def delete_item(path: str):
     """Delete a file or folder from the uploads directory."""
     if not DELETE_ENABLED:
         return HTMLResponse("Deletion not enabled", status_code=403)
 
-    full_path = os.path.join(UPLOAD_DIR, path)
-    abs_path = os.path.abspath(full_path)
-    base_path = os.path.abspath(UPLOAD_DIR)
-
-    if not abs_path.startswith(base_path + os.sep) or abs_path == base_path:
+    if not validate_path(path):
         return HTMLResponse("Access denied", status_code=403)
+
+    full_path = os.path.join(UPLOAD_DIR, path)
 
     if not os.path.exists(full_path):
         return HTMLResponse("Item not found", status_code=404)
@@ -177,14 +180,35 @@ async def delete_item(path: str):
 
 @app.get("/files/{path:path}")
 async def get_file(path: str):
-    """Get full path given relative path."""
+    """Return a file for download."""
+    if not validate_path(path):
+        return HTMLResponse("Access denied", status_code=403)
+
     full_path = os.path.join(UPLOAD_DIR, path)
     if not os.path.exists(full_path):
         return HTMLResponse("<h3>File not found</h3>", status_code=404)
-    return FileResponse(full_path)
+    return FileResponse(
+        full_path,
+        headers={"Content-Disposition": f'attachment; filename="{os.path.basename(full_path)}"'},
+    )
 
 
-@app.get("/shared_text", response_class=HTMLResponse)
+@app.get("/download_folder/{folder_name}")
+async def download_folder(folder_name: str):
+    """Zip a folder in UPLOAD_DIR and return it for download."""
+    if not validate_path(folder_name):
+        return HTMLResponse("Access denied", status_code=403)
+
+    folder_path = os.path.join(UPLOAD_DIR, folder_name)
+    if not os.path.isdir(folder_path):
+        return HTMLResponse("<h3>Folder not found</h3>", status_code=404)
+
+    tmp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    shutil.make_archive(tmp_zip.name[:-4], "zip", folder_path)
+    return FileResponse(tmp_zip.name, filename=f"{folder_name}.zip")
+
+
+@app.get("/shared_text", response_class=PlainTextResponse)
 async def get_shared_text():
     """Return the content of the shared NOTES_FILE file."""
     path = os.path.join(UPLOAD_DIR, NOTES_FILE)
@@ -193,7 +217,7 @@ async def get_shared_text():
             content = f.read()
     else:
         content = ""
-    return HTMLResponse(content)
+    return PlainTextResponse(content)
 
 
 @app.post("/shared_text", response_class=HTMLResponse)
