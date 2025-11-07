@@ -147,7 +147,7 @@ async def index(sort: str = "newest", mode: str = "top"):
 
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(files: list[UploadFile] = File(...)):
-    """Handle file uploads, save to UPLOAD_DIR."""
+    """Handle file and folder uploads, save to UPLOAD_DIR."""
     for file in files:
         if not file.filename:
             continue

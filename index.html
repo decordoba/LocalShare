@@ -242,8 +242,6 @@
     // Upload function
     function uploadFiles(files) {
       const formData = new FormData();
-      for (const file of files)
-        formData.append('files', file, file.fullPath || file.name);
 
       progressContainer.style.display = 'block';
       progressBar.style.width = '0%';
